@@ -132,6 +132,16 @@ footer{border-top:1px solid var(--border);padding:36px 0}
 .footer-links a{font-size:13px;color:var(--text-3);text-decoration:none;transition:color .15s}
 .footer-links a:hover{color:var(--text)}
 .footer-copy{font-size:12px;color:var(--text-3)}
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(15,23,42,0.5);z-index:1000;align-items:center;justify-content:center;padding:24px}
+.modal{background:var(--bg);border-radius:var(--radius);border:1px solid var(--border);width:100%;max-width:600px;max-height:80vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,0.15)}
+.modal-header{padding:20px 24px;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;justify-content:space-between;gap:16px}
+.modal-subject{font-size:16px;font-weight:600;color:var(--text);line-height:1.3}
+.modal-close{background:none;border:none;cursor:pointer;color:var(--text-3);font-size:20px;padding:0;line-height:1;flex-shrink:0;transition:color .15s}
+.modal-close:hover{color:var(--text)}
+.modal-meta{padding:14px 24px;border-bottom:1px solid var(--border);display:flex;flex-direction:column;gap:6px;background:var(--bg2)}
+.modal-meta-row{display:flex;gap:8px;font-size:13px}
+.modal-meta-key{color:var(--text-3);min-width:40px}
+.modal-meta-val{color:var(--text-2);font-family:'Geist Mono',monospace;font-size:12px}
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(12px);background:var(--text);color:white;font-size:13px;font-weight:500;padding:10px 20px;border-radius:var(--radius-sm);opacity:0;transition:all .25s;pointer-events:none;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,.15)}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 @media(max-width:768px){.gen-layout{grid-template-columns:1fr}.sidebar{display:none}.steps{grid-template-columns:1fr}.features{grid-template-columns:1fr 1fr}.numbers-grid{grid-template-columns:repeat(2,1fr)}.stats{gap:24px;flex-wrap:wrap}.footer-inner{flex-direction:column;gap:16px;text-align:center}nav .nav-links{display:none}}
@@ -326,6 +336,20 @@ footer{border-top:1px solid var(--border);padding:36px 0}
   </div>
 </footer>
 
+<div class="modal-overlay" id="emailModal" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-subject" id="modalSubject"></div>
+      <button class="modal-close" onclick="closeModal()">×</button>
+    </div>
+    <div class="modal-meta">
+      <div class="modal-meta-row"><span class="modal-meta-key">From</span><span class="modal-meta-val" id="modalFrom"></span></div>
+      <div class="modal-meta-row"><span class="modal-meta-key">Date</span><span class="modal-meta-val" id="modalDate"></span></div>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+  </div>
+</div>
+
 <script>
 const API = "https://www.fluxmail.cc";
 let currentEmail = "";
@@ -390,6 +414,32 @@ function showToast(msg) {
 }
 
 let lastMessageIds = new Set();
+let allMessages = [];
+
+function timeAgo(dateStr) {
+  const diff = Math.floor((Date.now() - new Date(dateStr)) / 1000);
+  if (diff < 60) return 'just now';
+  if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
+  return Math.floor(diff / 3600) + 'h ago';
+}
+
+function openMessage(id) {
+  const msg = allMessages.find(m => m.id === id);
+  if (!msg) return;
+  const modal = document.getElementById('emailModal');
+  document.getElementById('modalFrom').textContent = msg.from;
+  document.getElementById('modalSubject').textContent = msg.subject;
+  document.getElementById('modalDate').textContent = new Date(msg.date).toLocaleString();
+  document.getElementById('modalBody').textContent = msg.body || '(no content)';
+  modal.style.display = 'flex';
+  const item = document.querySelector(`[data-id="${id}"]`);
+  if (item) { item.classList.remove('unread'); item.querySelector('.inbox-unread-dot').style.background = 'var(--text-3)'; }
+}
+
+function closeModal() {
+  document.getElementById('emailModal').style.display = 'none';
+}
+
 async function refreshInbox() {
   if (!currentEmail) return;
   try {
@@ -397,6 +447,7 @@ async function refreshInbox() {
     const data = await res.json();
     const messages = data.messages || [];
     if (messages.length === 0) return;
+    allMessages = messages;
     document.getElementById('inboxCount').textContent = messages.length;
     const inbox = document.getElementById('inboxContent');
     const newMsgs = messages.filter(m => !lastMessageIds.has(m.id));
@@ -404,8 +455,8 @@ async function refreshInbox() {
       if (inbox.querySelector('.inbox-empty')) inbox.innerHTML = '';
       newMsgs.forEach(msg => {
         lastMessageIds.add(msg.id);
-        const time = new Date(msg.receivedAt).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
-        inbox.insertAdjacentHTML('afterbegin', `<div class="inbox-item unread">
+        const time = timeAgo(msg.date);
+        inbox.insertAdjacentHTML('afterbegin', `<div class="inbox-item unread" data-id="${msg.id}" onclick="openMessage(${msg.id})">
           <div class="inbox-unread-dot"></div>
           <div style="flex:1;min-width:0">
             <div class="inbox-from">${msg.from}</div>
