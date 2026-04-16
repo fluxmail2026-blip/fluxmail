@@ -327,19 +327,113 @@ footer{border-top:1px solid var(--border);padding:36px 0}
 </footer>
 
 <script>
-const words=['ghost','void','flux','null','echo','arc','ion','bit','node','wave','drift','prism'];
-function randEmail(){const w1=words[Math.floor(Math.random()*words.length)];const w2=words[Math.floor(Math.random()*words.length)];const n=Math.floor(Math.random()*9000)+1000;return w1+w2+'_'+n+'@fluxmail.io';}
-let timerSec=600,timerInt;const TOTAL=600;
-function startTimer(){clearInterval(timerInt);timerInt=setInterval(()=>{timerSec--;if(timerSec<=0){generateEmail();return;}const m=Math.floor(timerSec/60),s=timerSec%60,tv=document.getElementById('timerVal');tv.textContent=m+':'+(s<10?'0':'')+s;tv.style.color=timerSec<=60?'#dc2626':'';document.getElementById('timerBar').style.width=(timerSec/TOTAL*100)+'%';if(timerSec<=60)document.getElementById('timerBar').style.background='#dc2626';},1000);}
-function generateEmail(){timerSec=600;document.getElementById('timerVal').style.color='';document.getElementById('timerBar').style.background='';document.getElementById('timerBar').style.width='100%';const email=randEmail(),d=document.getElementById('emailDisplay');d.style.opacity='0';setTimeout(()=>{d.textContent=email;d.style.opacity='1';d.style.transition='opacity .25s';},120);document.getElementById('inboxContent').innerHTML='<div class="inbox-empty"><p>No messages yet</p><span>Emails sent to this address will appear here</span></div>';document.getElementById('inboxCount').textContent='0';msgCount=0;startTimer();}
-function extendTimer(){timerSec=Math.min(timerSec+600,3600);showToast('Extended by 10 minutes');}
-function copyEmail(){const email=document.getElementById('emailDisplay').textContent;navigator.clipboard.writeText(email).catch(()=>{});const btn=document.getElementById('copyBtn');btn.textContent='Copied!';btn.classList.add('copied');setTimeout(()=>{btn.textContent='Copy';btn.classList.remove('copied');},2000);showToast('Address copied');}
-function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2200);}
-const mockMsgs=[{from:'noreply@github.com',subject:'Please verify your email address',time:'just now',tag:'Verify'},{from:'no-reply@google.com',subject:'Your verification code: 847291',time:'just now',tag:'Code'},{from:'hello@notion.so',subject:'Welcome to Notion — get started',time:'1 min ago',tag:'Welcome'},{from:'security@twitter.com',subject:'Confirm your account',time:'just now',tag:'Confirm'},{from:'noreply@discord.com',subject:'Your Discord verification link',time:'just now',tag:'Link'},{from:'hello@linear.app',subject:"You've been invited to a workspace",time:'2 min ago',tag:'Invite'}];
-let msgCount=0;
-function refreshInbox(){if(Math.random()>.35){const msg=mockMsgs[Math.floor(Math.random()*mockMsgs.length)];msgCount++;document.getElementById('inboxCount').textContent=msgCount;const item=`<div class="inbox-item unread"><div class="inbox-unread-dot"></div><div style="flex:1;min-width:0"><div class="inbox-from">${msg.from}</div><div class="inbox-subject">${msg.subject}</div></div><div class="inbox-meta"><span class="inbox-time">${msg.time}</span><span class="inbox-tag">${msg.tag}</span></div></div>`;const inbox=document.getElementById('inboxContent');if(inbox.querySelector('.inbox-empty'))inbox.innerHTML='';inbox.insertAdjacentHTML('afterbegin',item);showToast('New message arrived');}else{showToast('Inbox is up to date');}}
-document.querySelectorAll('[data-count]').forEach(el=>{const target=parseInt(el.dataset.count);let cur=0;const step=Math.ceil(target/60);const iv=setInterval(()=>{cur=Math.min(cur+step,target);el.textContent=cur.toLocaleString();if(cur>=target)clearInterval(iv);},25);});
-startTimer();
+const API = "https://api.fluxmail.cc";
+let currentEmail = "";
+let timerSec = 600, timerInt, pollInt;
+const TOTAL = 600;
+
+function startTimer() {
+  clearInterval(timerInt);
+  timerInt = setInterval(() => {
+    timerSec--;
+    if (timerSec <= 0) { generateEmail(); return; }
+    const m = Math.floor(timerSec / 60), s = timerSec % 60;
+    const tv = document.getElementById('timerVal');
+    tv.textContent = m + ':' + (s < 10 ? '0' : '') + s;
+    tv.style.color = timerSec <= 60 ? '#dc2626' : '';
+    document.getElementById('timerBar').style.width = (timerSec / TOTAL * 100) + '%';
+    if (timerSec <= 60) document.getElementById('timerBar').style.background = '#dc2626';
+  }, 1000);
+}
+
+async function generateEmail() {
+  timerSec = 600;
+  document.getElementById('timerVal').style.color = '';
+  document.getElementById('timerBar').style.background = '';
+  document.getElementById('timerBar').style.width = '100%';
+  clearInterval(pollInt);
+  try {
+    const res = await fetch(`${API}/api/generate`);
+    const data = await res.json();
+    currentEmail = data.address;
+  } catch {
+    const words = ['ghost','void','flux','null','echo','arc','ion','bit','node','wave'];
+    currentEmail = words[Math.floor(Math.random()*words.length)] + words[Math.floor(Math.random()*words.length)] + '_' + (Math.floor(Math.random()*9000)+1000) + '@fluxmail.cc';
+  }
+  const d = document.getElementById('emailDisplay');
+  d.style.opacity = '0';
+  setTimeout(() => { d.textContent = currentEmail; d.style.opacity = '1'; d.style.transition = 'opacity .25s'; }, 120);
+  document.getElementById('inboxContent').innerHTML = '<div class="inbox-empty"><p>No messages yet</p><span>Emails sent to this address will appear here</span></div>';
+  document.getElementById('inboxCount').textContent = '0';
+  startTimer();
+  pollInt = setInterval(refreshInbox, 8000);
+}
+
+function extendTimer() {
+  timerSec = Math.min(timerSec + 600, 3600);
+  showToast('Extended by 10 minutes');
+}
+
+function copyEmail() {
+  const email = document.getElementById('emailDisplay').textContent;
+  navigator.clipboard.writeText(email).catch(() => {});
+  const btn = document.getElementById('copyBtn');
+  btn.textContent = 'Copied!'; btn.classList.add('copied');
+  setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 2000);
+  showToast('Address copied');
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+let lastMessageIds = new Set();
+async function refreshInbox() {
+  if (!currentEmail) return;
+  try {
+    const res = await fetch(`${API}/api/inbox/${encodeURIComponent(currentEmail)}`);
+    const data = await res.json();
+    const messages = data.messages || [];
+    if (messages.length === 0) return;
+    document.getElementById('inboxCount').textContent = messages.length;
+    const inbox = document.getElementById('inboxContent');
+    const newMsgs = messages.filter(m => !lastMessageIds.has(m.id));
+    if (newMsgs.length > 0) {
+      if (inbox.querySelector('.inbox-empty')) inbox.innerHTML = '';
+      newMsgs.forEach(msg => {
+        lastMessageIds.add(msg.id);
+        const time = new Date(msg.receivedAt).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+        inbox.insertAdjacentHTML('afterbegin', `<div class="inbox-item unread">
+          <div class="inbox-unread-dot"></div>
+          <div style="flex:1;min-width:0">
+            <div class="inbox-from">${msg.from}</div>
+            <div class="inbox-subject">${msg.subject}</div>
+          </div>
+          <div class="inbox-meta">
+            <span class="inbox-time">${time}</span>
+            <span class="inbox-tag">New</span>
+          </div>
+        </div>`);
+      });
+      showToast('New message arrived');
+    }
+  } catch {}
+}
+
+document.querySelectorAll('[data-count]').forEach(el => {
+  const target = parseInt(el.dataset.count);
+  let cur = 0;
+  const step = Math.ceil(target / 60);
+  const iv = setInterval(() => {
+    cur = Math.min(cur + step, target);
+    el.textContent = cur.toLocaleString();
+    if (cur >= target) clearInterval(iv);
+  }, 25);
+});
+
+generateEmail();
 </script>
 </body>
 </html>
