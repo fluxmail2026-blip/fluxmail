@@ -327,7 +327,7 @@ footer{border-top:1px solid var(--border);padding:36px 0}
 </footer>
 
 <script>
-const API = "https://api.fluxmail.cc";
+const API = "https://www.fluxmail.cc";
 let currentEmail = "";
 let timerSec = 600, timerInt, pollInt;
 const TOTAL = 600;
@@ -393,7 +393,7 @@ let lastMessageIds = new Set();
 async function refreshInbox() {
   if (!currentEmail) return;
   try {
-    const res = await fetch(`${API}/api/inbox/${encodeURIComponent(currentEmail)}`);
+    const res = await fetch(`${API}/api/inbox?address=${encodeURIComponent(currentEmail)}`);
     const data = await res.json();
     const messages = data.messages || [];
     if (messages.length === 0) return;
